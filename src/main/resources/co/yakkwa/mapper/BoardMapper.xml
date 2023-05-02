@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="co.yakkwa.mapper.BoardMapper">
+	<sql id="search">
+	<trim prefix="AND (" suffix=")" prefixOverrides="or">
+			<foreach collection="typeArr" item="t">
+				<trim prefix="or">
+				<choose>
+					<when test="t == 'T'.toString()">
+						title like CONCAT(CONCAT('%',#{keyword}),'%')
+					</when>
+					<when test="t == 'C'.toString()">
+						content like CONCAT(CONCAT('%',#{keyword}),'%')
+					</when>
+					<when test="t == 'W'.toString()">
+						writer like CONCAT(CONCAT('%',#{keyword}),'%')
+					</when>
+				</choose>
+				</trim>
+			</foreach>
+		</trim>
+	</sql>
+	<select id="getList" resultType="co.yakkwa.domain.BoardVO">
+	select * from tbl_board where bno > 0
+	</select>
+	<select id="getListWithPaging" resultType="board">
+	<!-- CDATA:꺽쇠 등 특수문자를 일반 문자열로 인식 -->
+	<!-- # 들어가는 el문:변동된 현재 참조 위치 값
+		 $:지정된 당시의 값 -->
+		SELECT * 
+		FROM tbl_board tb 
+		WHERE bno > 0
+	<include refid="search" />
+		order by bno desc
+		limit #{amount} offset #{offset}
+	</select>
+	<!-- 상기 sql문 실행시 1페이지의 결과가 나온다 -->
+	
+	<insert id="insert">
+		insert into tbl_board (bno, title, content, writer) values (nextval(seq_board), #{title}, #{content}, #{writer})
+	</insert>
+	
+	<insert id="insertSelectKey">
+		<selectKey keyProperty="bno" order="BEFORE" resultType="long">
+		<!-- select nextval(seq_board) -->
+		select nextval(seq_board) from dual
+		</selectKey>
+		insert into tbl_board (bno, title, content, writer) values (#{bno}, #{title}, #{content}, #{writer})
+	</insert>
+	
+	<delete id="delete">
+		delete from tbl_board where bno = #{bno}
+	</delete>
+	
+	<select id="read" resultMap="boardMap"> <!-- resultType은 BoardVo에서 정의한 별칭으로 사용 가능(별칭 부여하지 않을시 co.yakkwa.domain.BoardVo으로 작성해야함 -->
+		select * from tbl_board left join tbl_attach using (bno) where bno = #{bno} order by odr
+	</select>
+	
+	<resultMap type="board" id="boardMap">
+		<result property="bno" column="bno" />
+		<result property="title" column="title" />
+		<result property="content" column="content" />
+		<result property="writer" column="writer" />
+		<result property="regdate" column="regdate" />
+		<result property="updatedate" column="updatedate" />
+		<collection property="attachs" resultMap="attachMap" />
+	</resultMap>
+	
+	<resultMap type="attach" id="attachMap">
+		<result property="uuid" column="uuid" />
+		<result property="path" column="path" />
+		<result property="name" column="name" />
+		<result property="image" column="image" />
+		<result property="bno" column="bno" />
+	</resultMap>
+	
+	<update id="update">
+		update tbl_board set
+		title = #{title}
+		,content = #{content}
+		,writer = #{writer}
+		,updatedate = now()
+		where bno = #{bno}
+	</update>
+	
+	<select id="getTotalCnt" resultType="int">
+		SELECT COUNT(*) 
+		FROM TBL_BOARD tb 
+		WHERE bno > 0
+		<include refid="search" />
+	</select>
+	<update id="updateReplyCnt">
+		update tbl_board set replycnt = replycnt + #{amount} where bno = #{bno}
+	</update>
+</mapper>
